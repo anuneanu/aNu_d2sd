@@ -1,0 +1,67 @@
+#!/system/bin/sh
+#
+# mount sd-ext partition in sdcard
+# mod: use aNu_d2sd functions library script
+#
+# anuneanu
+
+logI="log -p i -t mountext"
+logE="log -p e -t mountext"
+E2FSCK=`which e2fsck`
+[ `which busybox` = "" ] && exit || BB=`which busybox`
+[ "$SD_EXT_DIRECTORY" = "" ] && SD_EXT_DIRECTORY="/sd-ext"
+
+# call aNu_d2sd function library script
+. "/system/etc/init.d/99aNu_d2sd"
+
+# find sd-ext partition
+for MMC_NUM in `seq 0 9`; do
+    MMC_TYPE=`cat /sys/block/mmcblk$MMC_NUM/device/type`
+    if [ "$MMC_TYPE" = "SD" ]; then
+		SD_EXT_PART=/dev/block/mmcblk${MMC_NUM}p2
+		break
+    fi
+done
+
+# mount sd-ext if a valid partition was found
+if [ -b "$SD_EXT_PART" ]; then
+	# check sd-ext filesystem
+    if [ -x "$E2FSCK" ]; then
+		$logI "checking $SD_EXT_PART for errors..."
+        $E2FSCK -p $SD_EXT_PART
+        e2fsk_exitcode=$?
+    else
+        $logE "executable e2fsck not found, assuming no filesystem errors"
+        e2fsk_exitcode=0
+    fi
+	# mount sd-ext partition
+	if [ $e2fsk_exitcode -le 2 ]; then
+		if [ $($BB grep -c ext4 /proc/filesystems) -ne 0 ]; then
+		  mount_opt="-t ext4 -o noauto_da_alloc,data=ordered,commit=15,barrier=1,nouser_xattr,errors=continue,noatime,nodiratime,nosuid,nodev"
+		else
+		  mount_opt="-t auto -o nosuid,nodev"
+		fi
+		$BB mount $mount_opt $SD_EXT_PART $SD_EXT_DIRECTORY
+		if [ $? -eq 0 ]; then
+			$BB chown 1000:1000 $SD_EXT_DIRECTORY
+			$BB chmod 0771 $SD_EXT_DIRECTORY
+			$logI "$SD_EXT_DIRECTORY successfully mounted"
+			aNu_d2sd "/data/app* /data/data /data/dalvik-cache /data/local"
+		else
+			$logE "unable to mount filesystem for $SD_EXT_DIRECTORY!"
+			no_sdext=1
+		fi
+	else
+		$logE "e2fsck returned error $e2fsk_exitcode"
+		$logE "unable to repair ext partition...not mounting"
+		no_sdext=1
+	fi
+else
+    $logI "linux partition not found on sdcard"
+	no_sdext=1
+fi
+
+aNu_d2sd_restore $no_sdext
+
+$BB sync
+exit

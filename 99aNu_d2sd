@@ -1,0 +1,80 @@
+#!/system/bin/sh
+#
+# aNu_d2sd functions library script
+#
+# anuneanu
+
+[ `which busybox` = "" ] && exit || BB=`which busybox`
+[ `$BB basename $0` = "99aNu_d2sd" ] && exit 0
+[ "$SD_EXT_DIRECTORY" = "" ] && SD_EXT_DIRECTORY="/sd-ext"
+
+aNu_d2sd () {
+	local DATA_DIRS="$1"
+	for i in `ls -d $DATA_DIRS | $BB cut -d "/" -f 3`; do
+		[ ! -d $SD_EXT_DIRECTORY/$i ] && mkdir $SD_EXT_DIRECTORY/$i
+		$BB chown 1000:1000 $SD_EXT_DIRECTORY/$i
+		$BB chmod 0771 $SD_EXT_DIRECTORY/$i
+		[ ! -d /data/$i ] && mkdir /data/$i
+		$BB chown 1000:1000 /data/$i
+		$BB chmod 0771 /data/$i
+		for j in `ls /data/$i`; do
+			[ -h $SD_EXT_DIRECTORY/$i/$j ] && $BB rm $SD_EXT_DIRECTORY/$i/$j
+			[ -e $SD_EXT_DIRECTORY/$i/$j ] && $BB rm -r /data/$i/$j || $BB mv /data/$i/$j $SD_EXT_DIRECTORY/$i
+		done
+		$BB mount -o bind $SD_EXT_DIRECTORY/$i /data/$i
+		if [ $? -eq 0 ]; then
+			log -p i -t aNu_d2sd "$SD_EXT_DIRECTORY/$i mounted to /data/$i"
+			if [ "$i" = "data" -o "$i" = "dalvik-cache" ]; then
+				[ ! -d /data/${i}_s ] && mkdir /data/${i}_s
+				$BB chown 1000:1000 /data/${i}_s
+				$BB chmod 0771 /data/${i}_s
+				[ "$i" = "data" ] && ls_dir=`ls $SD_EXT_DIRECTORY/dalvik-cache | $BB awk -F'@' '$1~/^(data|mnt)/{print $3}' | $BB cut -d '-' -f 1`
+				[ "$i" = "dalvik-cache" ] && ls_dir=`ls $SD_EXT_DIRECTORY/dalvik-cache | $BB awk -F'@' '$1~/^(data|mnt)/{print}'`
+				for j in `ls $SD_EXT_DIRECTORY/$i`; do
+					if [ -h $SD_EXT_DIRECTORY/$i/$j ]; then
+						[ ! -e /data/${i}_s/$j ] && $BB rm $SD_EXT_DIRECTORY/$i/$j
+					else
+						if [ $(echo $ls_dir | $BB grep -c $j) -eq 0 ]; then
+							[ -e /data/${i}_s/$j ] && $BB rm -r $SD_EXT_DIRECTORY/$i/$j || $BB mv $SD_EXT_DIRECTORY/$i/$j /data/${i}_s
+							$BB ln -s /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
+						else
+							if [ -e /data/${i}_s/$j ]; then
+								$BB rm -r $SD_EXT_DIRECTORY/$i/$j
+								$BB mv /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
+							fi
+						fi
+					fi
+				done
+				for j in `ls /data/${i}_s`; do
+					if [ -e $SD_EXT_DIRECTORY/$i/$j ]; then
+						if [ ! -h $SD_EXT_DIRECTORY/$i/$j ]; then
+							$BB rm -r $SD_EXT_DIRECTORY/$i/$j
+							$BB ln -s /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
+						fi
+					fi
+				done
+			fi
+		else
+			log -p e -t aNu_d2sd "unable mounting $SD_EXT_DIRECTORY/$i to /data/$i"
+			for j in `ls $SD_EXT_DIRECTORY/$i`; do
+				$BB mv $SD_EXT_DIRECTORY/$i/$j /data/$i
+			done
+		fi
+	done
+}
+
+aNu_d2sd_restore () {
+	local aNu_d2sd_err=$1
+	if [ $aNu_d2sd_err -eq 1 ]; then
+		log -p i -t aNu_d2sd "aNu_d2sd is disabled"
+		for i in data dalvik-cache; do
+			if [ -d /data/${i}_s ]; then
+				log -p i -t aNu_d2sd "restoring system $i"
+				for j in `ls /data/${i}_s`; do
+					[ -e /data/$i/$j ] && $BB rm -r /data/$i/$j || $BB mv /data/${i}_s/$j /data/$i
+				done
+				$BB rm -r /data/${i}_s
+			fi
+		done
+	fi
+}
