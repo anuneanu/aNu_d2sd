@@ -35,22 +35,17 @@ aNu_d2sd () {
 						[ ! -e /data/${i}_s/$j ] && $BB rm $SD_EXT_DIRECTORY/$i/$j
 					else
 						if [ $(echo $ls_dir | $BB grep -c $j) -eq 0 ]; then
-							[ -e /data/${i}_s/$j ] && $BB rm -r $SD_EXT_DIRECTORY/$i/$j || $BB mv $SD_EXT_DIRECTORY/$i/$j /data/${i}_s
+							[ -e /data/${i}_s/$j ] && $BB rm -r /data/${i}_s/$j
+							$BB mv $SD_EXT_DIRECTORY/$i/$j /data/${i}_s
 							$BB ln -s /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
-						else
-							if [ -e /data/${i}_s/$j ]; then
-								$BB rm -r $SD_EXT_DIRECTORY/$i/$j
-								$BB mv /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
-							fi
 						fi
 					fi
 				done
 				for j in `ls /data/${i}_s`; do
 					if [ -e $SD_EXT_DIRECTORY/$i/$j ]; then
-						if [ ! -h $SD_EXT_DIRECTORY/$i/$j ]; then
-							$BB rm -r $SD_EXT_DIRECTORY/$i/$j
-							$BB ln -s /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
-						fi
+						[ -h $SD_EXT_DIRECTORY/$i/$j ] || $BB rm -r /data/${i}_s/$j
+					else
+						$BB ln -s /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
 					fi
 				done
 			fi
