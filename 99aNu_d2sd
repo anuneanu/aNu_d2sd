@@ -34,7 +34,7 @@ aNu_d2sd () {
 					if [ -h $SD_EXT_DIRECTORY/$i/$j ]; then
 						[ ! -e /data/${i}_s/$j ] && $BB rm $SD_EXT_DIRECTORY/$i/$j
 					else
-						if [ $(echo $ls_dir | $BB grep -c $j) -eq 0 ]; then
+						if [ "$(ls $SD_EXT_DIRECTORY/dalvik-cache)" ] && [ $(echo $ls_dir | $BB grep -c $j) -eq 0 ]; then
 							[ -e /data/${i}_s/$j ] && $BB rm -r /data/${i}_s/$j
 							$BB mv $SD_EXT_DIRECTORY/$i/$j /data/${i}_s
 							$BB ln -s /data/${i}_s/$j $SD_EXT_DIRECTORY/$i
