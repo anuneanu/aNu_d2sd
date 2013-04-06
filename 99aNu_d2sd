@@ -4,12 +4,9 @@
 #
 # anuneanu
 
-[ `which busybox` = "" ] && exit || BB=`which busybox`
-[ `$BB basename $0` = "99aNu_d2sd" ] && exit 0
-[ "$SD_EXT_DIRECTORY" = "" ] && SD_EXT_DIRECTORY="/sd-ext"
-
 aNu_d2sd () {
 	local DATA_DIRS="$1"
+	local SD_EXT_DIRECTORY="$2"
 	for i in `ls -d $DATA_DIRS | $BB cut -d "/" -f 3`; do
 		[ ! -d $SD_EXT_DIRECTORY/$i ] && mkdir $SD_EXT_DIRECTORY/$i
 		$BB chown 1000:1000 $SD_EXT_DIRECTORY/$i
@@ -32,7 +29,7 @@ aNu_d2sd () {
 				[ "$i" = "dalvik-cache" ] && ls_dir=`ls $SD_EXT_DIRECTORY/dalvik-cache | $BB awk -F'@' '$1~/^(data|mnt)/{print}'`
 				for j in `ls $SD_EXT_DIRECTORY/$i`; do
 					if [ -h $SD_EXT_DIRECTORY/$i/$j ]; then
-						[ ! -e /data/${i}_s/$j ] && $BB rm $SD_EXT_DIRECTORY/$i/$j
+						[ -e /data/${i}_s/$j ] || $BB rm $SD_EXT_DIRECTORY/$i/$j
 					else
 						if [ "$(ls $SD_EXT_DIRECTORY/dalvik-cache)" ] && [ $(echo $ls_dir | $BB grep -c $j) -eq 0 ]; then
 							[ -e /data/${i}_s/$j ] && $BB rm -r /data/${i}_s/$j
