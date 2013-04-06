@@ -4,6 +4,8 @@
 #
 # anuneanu
 
+BB=`which busybox`
+
 aNu_d2sd () {
 	local DATA_DIRS="$1"
 	local SD_EXT_DIRECTORY="$2"
