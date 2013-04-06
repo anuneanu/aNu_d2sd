@@ -12,7 +12,7 @@ E2FSCK=`which e2fsck`
 [ "$SD_EXT_DIRECTORY" = "" ] && SD_EXT_DIRECTORY="/sd-ext"
 
 # call aNu_d2sd function library script
-. "/system/etc/init.d/99aNu_d2sd"
+. aNu_d2sd
 
 # find sd-ext partition
 for MMC_NUM in `seq 0 9`; do
@@ -36,17 +36,17 @@ if [ -b "$SD_EXT_PART" ]; then
     fi
 	# mount sd-ext partition
 	if [ $e2fsk_exitcode -le 2 ]; then
-		if [ $($BB grep -c ext4 /proc/filesystems) -ne 0 ]; then
-		  mount_opt="-t ext4 -o noauto_da_alloc,data=ordered,commit=15,barrier=1,nouser_xattr,errors=continue,noatime,nodiratime,nosuid,nodev"
-		else
-		  mount_opt="-t auto -o nosuid,nodev"
-		fi
-		$BB mount $mount_opt $SD_EXT_PART $SD_EXT_DIRECTORY
+		MOUNT_OPT="nouser_xattr,errors=continue,noatime,nodiratime,nosuid,nodev"
+		SD_EXT_FS=`$BB blkid /dev/block/mmcblk0p2 | $BB awk '-F ' '{print $3}' | $BB cut -d \" -f 2`
+		[ "$SD_EXT_FS" = "ext4" ] && MOUNT_OPT="$MOUNT_OPT,data=ordered,commit=5,barrier=1,noauto_da_alloc"
+		[ "$SD_EXT_FS" = "ext3" ] && MOUNT_OPT="$MOUNT_OPT,data=ordered,commit=5,barrier=1"
+		$BB mount -t $SD_EXT_FS -o $MOUNT_OPT $SD_EXT_PART $SD_EXT_DIRECTORY
 		if [ $? -eq 0 ]; then
 			$BB chown 1000:1000 $SD_EXT_DIRECTORY
 			$BB chmod 0771 $SD_EXT_DIRECTORY
 			$logI "$SD_EXT_DIRECTORY successfully mounted"
-			aNu_d2sd "/data/app* /data/data /data/dalvik-cache /data/local"
+			aNu_d2sd "/data/app* /data/data /data/dalvik-cache /data/local" "$SD_EXT_DIRECTORY"
+			no_sdext=0
 		else
 			$logE "unable to mount filesystem for $SD_EXT_DIRECTORY!"
 			no_sdext=1
